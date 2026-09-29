@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PhishCheck · URL Analyzer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #0d1117;
+      --bg2:          #161b22;
+      --surface:      #1c2128;
+      --surface2:     #21262d;
+      --nav-bg:       #0d1117;
+      --border:       #30363d;
+      --border-light: #21262d;
+      --text:         #e6edf3;
+      --text-mid:     #8b949e;
+      --text-soft:    #484f58;
+      --accent:       #58a6ff;
+      --accent-glow:  rgba(88,166,255,0.15);
+      --accent-dark:  #1f6feb;
+      --green:        #3fb950;
+      --green-bg:     rgba(63,185,80,0.1);
+      --green-border: rgba(63,185,80,0.3);
+      --yellow:       #d29922;
+      --yellow-bg:    rgba(210,153,34,0.1);
+      --yellow-border:rgba(210,153,34,0.3);
+      --red:          #f85149;
+      --red-bg:       rgba(248,81,73,0.1);
+      --red-border:   rgba(248,81,73,0.3);
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      font-size: 14px;
+    }
+
+    /* ══════════════════════════════════════
+       TOP NAVBAR
+    ══════════════════════════════════════ */
+    .navbar {
+      background: var(--nav-bg);
+      border-bottom: 1px solid var(--border);
+      height: 56px;
+      display: flex;
+      align-items: center;
+      padding: 0 1.5rem;
+      gap: 1.5rem;
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-brand {
+      display: flex; align-items: center; gap: 0.6rem; text-decoration: none;
+    }
+    .nav-brand-icon {
+      width: 28px; height: 28px;
+      background: linear-gradient(135deg, #58a6ff 0%, #1f6feb 100%);
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 800; color: #fff;
+      flex-shrink: 0; letter-spacing: -0.5px;
+      box-shadow: 0 0 12px rgba(88,166,255,0.35);
+    }
+    .nav-brand-name {
+      font-size: 0.92rem; font-weight: 700; color: var(--text); letter-spacing: 0.01em;
+    }
+    .nav-brand-tag {
+      font-size: 0.58rem; font-weight: 600;
+      background: rgba(88,166,255,0.12);
+      color: var(--accent);
+      border: 1px solid rgba(88,166,255,0.25);
+      border-radius: 20px; padding: 0.1rem 0.45rem;
+      letter-spacing: 0.06em; text-transform: uppercase;
+    }
+
+    .nav-sep { width: 1px; height: 20px; background: var(--border); }
+
+    .nav-links { display: flex; align-items: center; gap: 0.15rem; }
+    .nav-link {
+      display: flex; align-items: center; gap: 0.4rem;
+      padding: 0.35rem 0.75rem; font-size: 0.8rem;
+      color: var(--text-mid);
+      border-radius: 6px; cursor: pointer;
+      transition: background 0.15s, color 0.15s; text-decoration: none;
+    }
+    .nav-link:hover  { background: var(--surface2); color: var(--text); }
+    .nav-link.active { background: var(--surface); color: var(--text); font-weight: 600; }
+    .nav-link svg    { width: 13px; height: 13px; flex-shrink: 0; }
+
+    .nav-right {
+      margin-left: auto; display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.72rem; color: var(--text-soft);
+    }
+    .status-pip {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+      box-shadow: 0 0 6px rgba(63,185,80,0.7);
+    }
+
+    /* ══════════════════════════════════════
+       BREADCRUMB BAR
+    ══════════════════════════════════════ */
+    .breadbar {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 0.45rem 1.5rem;
+      display: flex; align-items: center; gap: 0.4rem;
+      font-size: 0.72rem; color: var(--text-soft); flex-shrink: 0;
+    }
+    .breadbar .crumb-active { color: var(--accent); font-weight: 600; }
+    .breadbar .sep { color: var(--text-soft); }
+
+    /* ══════════════════════════════════════
+       PAGE CONTENT
+    ══════════════════════════════════════ */
+    .page {
+      flex: 1; overflow-y: auto;
+      padding: 2rem 1.5rem 3rem;
+      max-width: 1020px; width: 100%; margin: 0 auto;
+    }
+    .page-title {
+      font-size: 1.2rem; font-weight: 700; color: var(--text);
+      margin-bottom: 0.2rem; letter-spacing: -0.01em;
+      display: flex; align-items: center; gap: 0.6rem;
+    }
+    .page-title-icon {
+      width: 32px; height: 32px;
+      background: var(--accent-glow);
+      border: 1px solid rgba(88,166,255,0.2);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .page-title-icon svg { width: 16px; height: 16px; color: var(--accent); }
+    .page-sub   { font-size: 0.8rem; color: var(--text-mid); margin-bottom: 1.75rem; padding-left: 2.5rem; }
+
+    /* ══════════════════════════════════════
+       URL INPUT CARD
+    ══════════════════════════════════════ */
+    .input-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .input-label {
+      font-size: 0.68rem; font-weight: 600; color: var(--text-mid);
+      letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 0.6rem;
+    }
+    .url-row { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.6rem; }
+    .url-field {
+      flex: 1; display: flex; align-items: center;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 7px; padding: 0 0.9rem; gap: 0.4rem;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .url-field:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(88,166,255,0.12);
+    }
+    .url-scheme {
+      font-size: 0.74rem; color: var(--text-soft);
+      border-right: 1px solid var(--border); padding-right: 0.6rem; margin-right: 0.15rem;
+      white-space: nowrap; font-family: 'Consolas', monospace;
+    }
+    input#url-input {
+      flex: 1; background: transparent; border: none; outline: none;
+      color: var(--text); font-size: 0.88rem; padding: 0.65rem 0;
+      font-family: 'Consolas', 'Courier New', monospace;
+    }
+    input#url-input::placeholder { color: var(--text-soft); }
+    .btn-paste {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 7px; color: var(--text-mid); cursor: pointer;
+      font-size: 0.76rem; font-weight: 500; padding: 0.62rem 1rem;
+      transition: all 0.15s;
+    }
+    .btn-paste:hover { border-color: var(--accent); color: var(--accent); background: var(--surface); }
+    .btn-analyse {
+      background: var(--accent); border: none; border-radius: 7px;
+      color: #fff; cursor: pointer; font-size: 0.82rem; font-weight: 600;
+      padding: 0.62rem 1.4rem; letter-spacing: 0.01em; transition: background 0.15s, box-shadow 0.15s;
+      box-shadow: 0 0 0 rgba(88,166,255,0);
+    }
+    .btn-analyse:hover    { background: var(--accent-dark); box-shadow: 0 0 16px rgba(88,166,255,0.35); }
+    .btn-analyse:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+    .input-hint {
+      font-size: 0.68rem; color: var(--text-soft);
+      display: flex; align-items: center; gap: 0.4rem;
+    }
+    .key-badge {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 4px; font-size: 0.62rem; padding: 0.1rem 0.4rem; color: var(--text-mid);
+      font-family: monospace;
+    }
+    .hint-right { margin-left: auto; font-size: 0.66rem; color: var(--text-soft); }
+
+    /* ══════════════════════════════════════
+       SECTION LABEL
+    ══════════════════════════════════════ */
+    .section-label {
+      font-size: 0.66rem; font-weight: 700;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--text-soft); margin-bottom: 0.7rem;
+    }
+
+    /* ══════════════════════════════════════
+       RESULT CARD
+    ══════════════════════════════════════ */
+    .result-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; margin-bottom: 1.1rem; overflow: hidden;
+    }
+    .result-top {
+      padding: 1.1rem 1.4rem; border-bottom: 1px solid var(--border);
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem;
+    }
+
+    .result-url-label {
+      font-size: 0.62rem; font-weight: 600;
+      letter-spacing: 0.07em; text-transform: uppercase;
+      color: var(--text-soft); margin-bottom: 0.3rem;
+    }
+    .result-url-value {
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 0.88rem; color: var(--text);
+      word-break: break-all; margin-bottom: 0.35rem;
+    }
+    .result-meta {
+      font-size: 0.66rem; color: var(--text-soft);
+    }
+    .result-meta span { color: var(--text-mid); }
+
+    .verdict-box { text-align: right; flex-shrink: 0; }
+    .verdict-badge {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      border-radius: 20px; font-size: 0.68rem; font-weight: 700;
+      letter-spacing: 0.07em; text-transform: uppercase;
+      padding: 0.25rem 0.75rem; margin-bottom: 0.45rem;
+      border: 1px solid;
+    }
+    .badge-Safe       { background: var(--green-bg);  border-color: var(--green-border);  color: var(--green); }
+    .badge-Suspicious { background: var(--yellow-bg); border-color: var(--yellow-border); color: var(--yellow); }
+    .badge-Phishing   { background: var(--red-bg);    border-color: var(--red-border);    color: var(--red); }
+    .verdict-score-label { font-size: 0.6rem; color: var(--text-soft); text-transform: uppercase; letter-spacing: 0.07em; }
+    .verdict-score-num   { font-size: 2.2rem; font-weight: 800; line-height: 1; color: var(--text); margin-top: 0.1rem; }
+    .verdict-score-denom { font-size: 0.78rem; color: var(--text-mid); font-weight: 400; }
+
+    /* threat bar */
+    .threat-wrap { padding: 0.9rem 1.4rem 0; border-bottom: 1px solid var(--border); }
+    .threat-track {
+      display: flex; height: 6px; border-radius: 99px;
+      overflow: hidden; background: var(--bg2); margin-bottom: 0.5rem;
+    }
+    .threat-seg { height: 100%; transition: width 0.45s ease; }
+    .seg-safe       { background: #3fb950; }
+    .seg-low        { background: #57ab5a; }
+    .seg-suspicious { background: #d29922; }
+    .seg-high       { background: #e3b341; }
+    .seg-phishing   { background: #f85149; }
+    .threat-labels  { display: flex; justify-content: space-between; margin-bottom: 0.9rem; }
+    .threat-lbl {
+      font-size: 0.6rem; font-weight: 600;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--text-soft);
+    }
+    .threat-lbl.active-Safe       { color: var(--green); }
+    .threat-lbl.active-Suspicious { color: var(--yellow); }
+    .threat-lbl.active-Phishing   { color: var(--red); }
+
+    /* banner */
+    .banner {
+      margin: 0.9rem 1.4rem;
+      border-radius: 7px; padding: 0.7rem 1rem;
+      font-size: 0.8rem; line-height: 1.55;
+      display: flex; align-items: flex-start; gap: 0.55rem;
+      border: 1px solid;
+    }
+    .banner-Safe       { background: var(--green-bg);  border-color: var(--green-border);  color: #7ee787; }
+    .banner-Suspicious { background: var(--yellow-bg); border-color: var(--yellow-border); color: #e3b341; }
+    .banner-Phishing   { background: var(--red-bg);    border-color: var(--red-border);    color: #ff7b72; }
+    .banner-icon { margin-top: 2px; flex-shrink: 0; font-size: 0.85rem; }
+    .banner strong { color: inherit; font-weight: 700; }
+
+    /* ══════════════════════════════════════
+       BOTTOM GRID
+    ══════════════════════════════════════ */
+    .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem; }
+
+    .data-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden;
+    }
+    .data-card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.7rem 1rem; border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+    }
+    .data-card-title {
+      font-size: 0.76rem; font-weight: 600; color: var(--text);
+      display: flex; align-items: center; gap: 0.4rem;
+    }
+    .data-card-title svg { width: 13px; height: 13px; color: var(--text-mid); }
+    .data-card-badge {
+      font-size: 0.62rem; color: var(--text-soft);
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 20px; padding: 0.1rem 0.5rem;
+    }
+
+    /* features table */
+    .feat-table { width: 100%; border-collapse: collapse; }
+    .feat-table thead th {
+      font-size: 0.6rem; font-weight: 700; letter-spacing: 0.07em;
+      text-transform: uppercase; color: var(--text-soft);
+      padding: 0.45rem 1rem; text-align: left;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg2);
+    }
+    .feat-table thead th:last-child { text-align: right; }
+    .feat-table tbody tr { border-bottom: 1px solid var(--border-light); }
+    .feat-table tbody tr:last-child { border-bottom: none; }
+    .feat-table tbody tr:hover { background: var(--surface2); }
+    .feat-table tbody td { font-size: 0.78rem; padding: 0.42rem 1rem; color: var(--text-mid); }
+    .feat-table tbody td:last-child {
+      text-align: right; color: var(--text);
+      font-weight: 600; font-family: 'Consolas', monospace;
+    }
+
+    /* characteristics list */
+    .char-list { list-style: none; padding: 0; }
+    .char-item {
+      display: flex; align-items: flex-start; gap: 0.65rem;
+      padding: 0.6rem 1rem; border-bottom: 1px solid var(--border-light);
+    }
+    .char-item:last-child { border-bottom: none; }
+    .char-num  { font-size: 0.62rem; color: var(--text-soft); font-weight: 700; min-width: 18px; padding-top: 1px; font-family: monospace; }
+    .char-text { font-size: 0.78rem; color: var(--text-mid); line-height: 1.55; }
+    .no-flags  { padding: 1.2rem 1rem; font-size: 0.78rem; color: var(--text-soft); font-style: italic; }
+
+    /* error & spinner */
+    .error-banner {
+      background: var(--red-bg); border: 1px solid var(--red-border);
+      border-radius: 7px; color: #ff7b72;
+      font-size: 0.8rem; padding: 0.65rem 1rem; margin-top: 0.5rem;
+    }
+    .spinner {
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%; width: 14px; height: 14px;
+      animation: spin 0.7s linear infinite;
+      display: inline-block; vertical-align: middle; margin-right: 0.4rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* footer */
+    .footer-bar {
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      padding: 0.55rem 1.5rem;
+      display: flex; align-items: center; gap: 1rem;
+      font-size: 0.66rem; color: var(--text-soft);
+      flex-shrink: 0;
+    }
+    .footer-bar span { color: var(--text-mid); }
+    .footer-dot {
+      display: inline-block; width: 5px; height: 5px;
+      border-radius: 50%; background: var(--green);
+      box-shadow: 0 0 5px rgba(63,185,80,0.6);
+      margin: 0 3px; vertical-align: middle;
+    }
+    .footer-sep { color: var(--border); }
+  </style>
+</head>
+<body>
+
+  <!-- ══════ TOP NAVBAR ══════ -->
+  <nav class="navbar">
+    <div class="nav-brand">
+      <div class="nav-brand-icon">PC</div>
+      <span class="nav-brand-name">PhishCheck</span>
+      <span class="nav-brand-tag">Beta</span>
+    </div>
+
+    <div class="nav-sep"></div>
+
+    <div class="nav-links">
+      <div class="nav-link active">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="7" cy="7" r="4.5"/><line x1="10.2" y1="10.2" x2="13.5" y2="13.5"/>
+        </svg>
+        URL Analyzer
+      </div>
+    </div>
+
+    <div class="nav-right">
+      <div class="status-pip"></div>
+      All systems operational
+    </div>
+  </nav>
+
+  <!-- ══════ BREADCRUMB ══════ -->
+  <div class="breadbar">
+    <span>PhishCheck</span>
+    <span class="sep">›</span>
+    <span class="crumb-active">URL Analyzer</span>
+  </div>
+
+  <!-- ══════ MAIN CONTENT ══════ -->
+  <main class="page">
+
+    <div class="page-title">
+      <div class="page-title-icon">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13z"/>
+          <path d="M8 5v3.5l2 1.5"/>
+        </svg>
+      </div>
+      URL Analyzer
+    </div>
+    <div class="page-sub">Paste a URL below to check for phishing indicators using our 4-layer cloud classifier.</div>
+
+    <!-- Input card -->
+    <div class="input-card">
+      <div class="input-label">URL to Analyse</div>
+      <div class="url-row">
+        <div class="url-field">
+          <span class="url-scheme">https://</span>
+          <input id="url-input" type="text"
+            placeholder="paypal.com/signin"
+            autocomplete="off" spellcheck="false" />
+        </div>
+        <button class="btn-paste" onclick="pasteURL()">Paste</button>
+        <button class="btn-analyse" id="analyse-btn" onclick="checkURL()">Analyze URL</button>
+      </div>
+      <div class="input-hint">
+        <span class="key-badge">Enter</span> to analyze &nbsp;
+        <span class="key-badge">/</span> to focus
+        <span class="hint-right">Local classifier · 4-layer cloud inference · Random Forest</span>
+      </div>
+    </div>
+
+    <!-- Result area -->
+    <div id="result"></div>
+
+  </main>
+
+  <!-- ══════ FOOTER ══════ -->
+  <footer class="footer-bar">
+    <span>Model</span> gradient-boosting · 1.5.1
+    <span class="footer-sep">·</span>
+    <span>Engine</span> 2-stage · rules + ML
+    <span class="footer-sep">·</span>
+    <span>Inference</span> <span class="footer-dot"></span> Operational
+  </footer>
+
+  <script>
+    document.addEventListener('keydown', e => {
+      const inp = document.getElementById('url-input');
+      if (e.key === '/' && document.activeElement !== inp) { e.preventDefault(); inp.focus(); }
+      if (e.key === 'Enter') checkURL();
+    });
+
+    async function pasteURL() {
+      try {
+        const text = await navigator.clipboard.readText();
+        document.getElementById('url-input').value = text.trim();
+        document.getElementById('url-input').focus();
+      } catch(e) {}
+    }
+
+    async function checkURL() {
+      const raw = document.getElementById('url-input').value.trim();
+      const resultBox = document.getElementById('result');
+      const btn = document.getElementById('analyse-btn');
+      if (!raw) {
+        resultBox.innerHTML = '<div class="error-banner">Please enter a URL to analyse.</div>';
+        return;
+      }
+      const url = raw.startsWith('http') ? raw : 'https://' + raw;
+      btn.disabled = true;
+      resultBox.innerHTML = '<div style="padding:1.2rem 0;font-size:0.8rem;color:#8b949e"><span class="spinner"></span>Analysing…</div>';
+
+      try {
+        const res  = await fetch('/classify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+        const data = await res.json();
+        if (!res.ok) { resultBox.innerHTML = `<div class="error-banner">${data.error}</div>`; return; }
+        showResult(data);
+      } catch(e) {
+        resultBox.innerHTML = '<div class="error-banner">Cannot reach server. Make sure it is running.</div>';
+      } finally { btn.disabled = false; }
+    }
+
+    function showResult(data) {
+      const score100 = Math.round(data.score * 100);
+      const lvl   = data.level;
+      const probs = data.probabilities;
+      const feats = data.features || {};
+      const reasons = data.explanation || [];
+
+      const now  = new Date();
+      const time = now.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' })
+                 + ' · ' + now.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+      const reqId = 'req_' + Math.random().toString(36).slice(2, 14);
+
+      // Threat bar widths
+      const safeW  = Math.round((probs.Safe      || 0) * 100);
+      const phishW = Math.round((probs.Phishing   || 0) * 100);
+      const suspW  = Math.round((probs.Suspicious || 0) * 100);
+      const lowW   = Math.max(0, safeW  - 10);
+      const highW  = Math.max(0, phishW - 10);
+
+      const activeMap = { Safe:'SAFE', Suspicious:'SUSPICIOUS', Phishing:'PHISHING' };
+      const tLabels = ['SAFE','LOW','SUSPICIOUS','HIGH','PHISHING'].map(l =>
+        `<span class="threat-lbl ${l === activeMap[lvl] ? 'active-'+lvl : ''}">${l}</span>`
+      ).join('');
+
+      const bannerMsg = {
+        Safe:       '✓ <strong>No suspicious characteristics detected.</strong> This URL passed all standard phishing checks in the classifier\'s feature space.',
+        Suspicious: '⚠ <strong>Suspicious URL detected.</strong> This URL shows characteristics commonly associated with phishing or spam. Do not enter credentials.',
+        Phishing:   '✕ <strong>High-confidence phishing detected.</strong> This URL exhibits multiple strong indicators of a phishing attack.',
+      }[lvl];
+
+      const featRows = [
+        ['URL Length',         feats.url_length],
+        ['Domain Length',      feats.domain_name_length],
+        ['Path / Query',       (feats.slash_count||0) + (feats.query_param_count||0)],
+        ['Subdomains',         feats.subdomain_depth],
+        ['Dot Count',          feats.dot_count],
+        ['Uses HTTPS',         feats.uses_https ? 'Yes' : 'No'],
+        ['Phishing Keywords',  feats.phishing_word_count],
+        ['URL Entropy',        feats.url_entropy],
+      ].map(([n,v]) => `<tr><td>${n}</td><td>${v}</td></tr>`).join('');
+
+      const charItems = reasons.length
+        ? reasons.map((r,i) =>
+            `<li class="char-item">
+              <span class="char-num">${String(i+1).padStart(2,'0')}</span>
+              <span class="char-text">${r}</span>
+            </li>`).join('')
+        : '<div class="no-flags">No suspicious characteristics noted.</div>';
+
+      document.getElementById('result').innerHTML = `
+        <div class="section-label">Latest Result</div>
+
+        <div class="result-card">
+          <div class="result-top">
+            <div style="flex:1;min-width:0">
+              <div class="result-url-label">Analyzed URL</div>
+              <div class="result-url-value">${esc(data.url)}</div>
+              <div class="result-meta">
+                Classification: <span>${lvl.toLowerCase()}</span> &nbsp;·&nbsp;
+                Analyzed: <span>${time}</span> &nbsp;·&nbsp;
+                Request: <span>${reqId}</span> &nbsp;·&nbsp;
+                <span>● local</span>
+              </div>
+            </div>
+            <div class="verdict-box">
+              <div class="verdict-badge badge-${lvl}">● ${lvl.toUpperCase()}</div>
+              <div class="verdict-score-label">Risk Score</div>
+              <div class="verdict-score-num">${score100}<span class="verdict-score-denom"> / 100</span></div>
+            </div>
+          </div>
+
+          <div class="threat-wrap">
+            <div class="threat-track">
+              <div class="threat-seg seg-safe"       style="width:${safeW}%"></div>
+              <div class="threat-seg seg-low"        style="width:${lowW}%"></div>
+              <div class="threat-seg seg-suspicious" style="width:${suspW}%"></div>
+              <div class="threat-seg seg-high"       style="width:${highW}%"></div>
+              <div class="threat-seg seg-phishing"   style="width:${phishW}%"></div>
+            </div>
+            <div class="threat-labels">${tLabels}</div>
+          </div>
+
+          <div class="banner banner-${lvl}">
+            <span class="banner-icon">◎</span>
+            <span>${bannerMsg}</span>
+          </div>
+        </div>
+
+        <div class="bottom-grid">
+          <div class="data-card">
+            <div class="data-card-header">
+              <div class="data-card-title">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M3 4h10M3 8h7M3 12h5"/>
+                </svg>
+                URL Features
+              </div>
+              <span class="data-card-badge">contributing characteristics</span>
+            </div>
+            <table class="feat-table">
+              <thead><tr><th>Feature</th><th>Value</th></tr></thead>
+              <tbody>${featRows}</tbody>
+            </table>
+          </div>
+
+          <div class="data-card">
+            <div class="data-card-header">
+              <div class="data-card-title">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <circle cx="8" cy="8" r="6"/>
+                  <line x1="8" y1="7" x2="8" y2="11"/>
+                  <circle cx="8" cy="5" r="0.5" fill="currentColor"/>
+                </svg>
+                Contributing Characteristics
+              </div>
+              <span class="data-card-badge">${reasons.length} noted</span>
+            </div>
+            <ul class="char-list">${charItems}</ul>
+          </div>
+        </div>
+      `;
+    }
+
+    function esc(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+  </script>
+</body>
+</html>
